@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Audit · DNA Secure Vault</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container">
+    <div class="card">
+      <h1>Audit dashboard <span class="role-badge admin">admin</span></h1>
+      <p class="muted">Real-time security overview across all users and vault activity.</p>
+      <div id="stats" class="stats" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Users</h2>
+      <table>
+        <thead><tr><th>Username</th><th>Role</th><th>Created</th></tr></thead>
+        <tbody id="users"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Activity log</h2>
+      <div class="filter-bar">
+        <input id="q" placeholder="Search..." />
+        <select id="event">
+          <option value="">All events</option>
+        </select>
+        <select id="severity">
+          <option value="">All severities</option>
+          <option value="info">info</option>
+          <option value="warning">warning</option>
+          <option value="critical">critical</option>
+        </select>
+        <button onclick="loadLogs()">Apply</button>
+      </div>
+      <table>
+        <thead><tr><th>Timestamp</th><th>Severity</th><th>Event</th><th>Details</th></tr></thead>
+        <tbody id="logs"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    requireAuth("admin");
+    document.getElementById("nav").innerHTML = renderNav("admin");
+
+    async function loadStats() {
+      const s = await api("/admin/stats");
+      const t = s.totals;
+      document.getElementById("stats").innerHTML = `
+        <div class="stat"><div class="n">${t.users}</div><div class="l">Users</div></div>
+        <div class="stat"><div class="n">${t.vault_items}</div><div class="l">Vault items</div></div>
+        <div class="stat success"><div class="n">${t.successful_logins}</div><div class="l">Login success</div></div>
+        <div class="stat warn"><div class="n">${t.failed_logins}</div><div class="l">Login failed</div></div>
+        <div class="stat warn"><div class="n">${t.attack_simulations}</div><div class="l">Attacks tried</div></div>
+        <div class="stat danger"><div class="n">${t.integrity_failures}</div><div class="l">Integrity fails</div></div>
+        <div class="stat"><div class="n">${t.log_entries}</div><div class="l">Log entries</div></div>
+      `;
+      const evSel = document.getElementById("event");
+      const existing = new Set([...evSel.options].map(o => o.value));
+      Object.keys(s.by_event || {}).forEach(ev => {
+        if (!existing.has(ev)) {
+          const o = document.createElement("option");
+          o.value = ev; o.textContent = `${ev} (${s.by_event[ev]})`;
+          evSel.appendChild(o);
+        }
+      });
+    }
+
+    async function loadUsers() {
+      const u = await api("/admin/users");
+      document.getElementById("users").innerHTML = (u.users || []).map(x => `
+        <tr>
+          <td>${escapeHTML(x.username)}</td>
+          <td><span class="role-badge ${x.role}">${escapeHTML(x.role)}</span></td>
+          <td class="muted">${escapeHTML(x.created_at || '')}</td>
+        </tr>`).join("");
+    }
+
+    async function loadLogs() {
+      const params = new URLSearchParams();
+      const q = document.getElementById("q").value.trim();
+      const ev = document.getElementById("event").value;
+      const sv = document.getElementById("severity").value;
+      if (q) params.set("q", q);
+      if (ev) params.set("event", ev);
+      if (sv) params.set("severity", sv);
+      const l = await api("/admin/logs" + (params.toString() ? `?${params}` : ""));
+      document.getElementById("logs").innerHTML = (l.logs || []).map(x => {
+        const sev = x.severity || "info";
+        const detail = Object.fromEntries(
+          Object.entries(x).filter(([k]) => !['_id','timestamp','event','severity'].includes(k))
+        );
+        return `
+          <tr>
+            <td class="muted">${escapeHTML(x.timestamp)}</td>
+            <td class="severity-${sev}">${sev}</td>
+            <td><span class="tag">${escapeHTML(x.event)}</span></td>
+            <td><code>${escapeHTML(JSON.stringify(detail))}</code></td>
+          </tr>`;
+      }).join("") || '<tr><td colspan="4" class="muted">No matching activity.</td></tr>';
+    }
+
+    (async () => {
+      try {
+        await loadStats();
+        await loadUsers();
+        await loadLogs();
+      } catch (e) {
+        document.body.insertAdjacentHTML("afterbegin",
+          `<div class="container"><div class="alert error">${escapeHTML(e.message)} — admin only.</div></div>`);
+      }
+    })();
+  </script>
+</body>
+</html>

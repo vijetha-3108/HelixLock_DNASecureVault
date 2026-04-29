@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: dna-secure-vault
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 3 -b 0.0.0.0:$PORT run:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: USE_INMEMORY_DB
+        value: "true"
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: PYTHON_VERSION
+        value: "3.11.9"

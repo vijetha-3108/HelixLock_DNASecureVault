@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Register · DNA Secure Vault</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+
+<body>
+  <div class="center">
+    <div class="auth-box card">
+      <h1>Create account</h1>
+      <div id="alert"></div>
+      <label>Username</label>
+      <input id="username" autocomplete="username" />
+      <label>Password</label>
+      <input id="password" type="password" autocomplete="new-password" />
+      <label>Role</label>
+      <select id="role">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button onclick="doRegister()">Register</button>
+      <button class="ghost" onclick="location.href='/login.html'">Back to login</button>
+    </div>
+  </div>
+  <script src="/js/api.js"></script>
+  <script>
+    async function doRegister() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      const role = document.getElementById("role").value;
+      const alertBox = document.getElementById("alert");
+      if (!username || !password) {
+        alertBox.innerHTML = `<div class="alert error">All fields are required</div>`; return;
+      }
+      if (password.length < 6) {
+        alertBox.innerHTML = `<div class="alert error">Password must be at least 6 characters</div>`; return;
+      }
+      try {
+        await api("/auth/register", { method: "POST", body: JSON.stringify({ username, password, role }) });
+        alertBox.innerHTML = `<div class="alert success">Account created. Redirecting…</div>`;
+        setTimeout(() => location.href = "/login.html", 1200);
+      } catch (e) {
+        alertBox.innerHTML = `<div class="alert error">${escapeHTML(e.message)}</div>`;
+      }
+    }
+  </script>
+</body>
+
+</html>

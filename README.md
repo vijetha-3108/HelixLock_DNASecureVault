@@ -1,146 +1,74 @@
-# HelixLock_DNASecureVault
-# 🔐 HelixLock: DNA Secure Vault
+# 🧬 DNA Secure Vault
 
-A bio-inspired secure data vault that leverages DNA-based encoding techniques to protect sensitive information. Built with a focus on **security, scalability, and real-world application design**.
+A full-stack cybersecurity project that uses **DNA-based cryptography** to securely
+store and manage sensitive chemical data. Includes JWT authentication, RBAC,
+brute-force protection, rate limiting, attack simulation, an admin audit
+dashboard, animated DNA visualization, and a deployment-ready Docker/Render setup.
 
----
+## Quick start
 
-## 🚀 Overview
-
-HelixLock explores an unconventional approach to data security by combining **DNA sequence logic (A, T, C, G)** with modern web technologies. The system allows users to securely store, encrypt, and manage sensitive data through a structured vault interface.
-
----
-
-## ⚙️ Features
-
-* 🧬 DNA-based encryption & decryption
-* 🔐 Token-based authentication system
-* 📁 Secure vault for storing sensitive entries
-* 📜 Activity logging for tracking user actions
-* 🛡️ Browser autofill mitigation in login forms
-* 🎨 Clean and responsive UI
-* 🧩 Modular Flask backend (routes → services → models)
-
----
-
-## 🛡️ Security Highlights
-
-### 🔒 Autofill Mitigation (Advanced)
-
-Browsers often store and auto-suggest credentials, which can expose sensitive data.
-
-HelixLock implements:
-
-* Disabled unwanted autofill behavior
-* Controlled input handling
-* Reduced credential persistence risks
-
-This adds a **practical security layer** often overlooked in standard applications.
-
----
-
-## 🧠 Tech Stack
-
-**Frontend:** HTML, CSS, JavaScript
-**Backend:** Python, Flask
-**Database:** MongoDB / CSV (configurable)
-
----
-
-## 📂 Project Structure
-
-```
-backend/
- ├── routes/
- ├── services/
- ├── models/
- ├── utils/
-
-frontend/
- ├── html/
- ├── css/
- ├── js/
-```
-
----
-
-## ▶️ How to Run
-
-### 1. Clone the repository
-
-```
-git clone https://github.com/your-username/helixlock-dna-vault.git
-cd helixlock-dna-vault
-```
-
-### 2. Setup virtual environment
-
-```
+```bash
 python -m venv venv
-venv\Scripts\activate   # Windows
-```
-
-### 3. Install dependencies
-
-```
+# Windows: venv\Scripts\activate    macOS/Linux: source venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 4. Run backend
-
-```
 python run.py
 ```
 
-Backend runs at:
+Open <http://127.0.0.1:5000>.
+
+## Features
+
+### Authentication & RBAC
+- JWT-based sessions with bcrypt password hashing
+- Roles: **admin** and **user** (separate UIs and API permissions)
+- Brute-force protection: configurable lockout after N failed attempts
+- IP-based rate limiting on auth and attack endpoints (Flask-Limiter)
+
+### DNA Cryptography Engine
+- 24 key-derived binary→DNA permutations
+- SHA-256 keyed mutation layer (XOR-style rotation in DNA space)
+- SHA-256 integrity hash → tamper detection on decrypt
+- Animated **double-helix SVG** visualization with colored A/T/G/C bases,
+  Watson–Crick complement strand, and per-stage pipeline view
+
+### Audit & Logging
+- Every event tagged with severity (`info`, `warning`, `critical`),
+  IP, user agent, user id
+- **Admin audit dashboard**: stat tiles, event/severity filters, search
+
+### Attack Simulation
+- Wrong-key decryption
+- Base-flipping tamper detection
+- Unauthorized request
+
+### Tests
+- Unit tests for crypto, integrity, mapping, complement
+- Integration tests for auth (incl. lockout), vault, RBAC, attack endpoints
+
+```bash
+pytest -q
+```
+
+### Deployment
+- `Dockerfile` + `Procfile` + `render.yaml` for one-click Render deploy
+- Notes for AWS Elastic Beanstalk and ECS in `docs/DEPLOYMENT.md`
+
+## Project layout
 
 ```
-http://127.0.0.1:5000
+dna-secure-vault/
+├── app.py / run.py / config.py
+├── Dockerfile / Procfile / render.yaml
+├── backend/
+│   ├── extensions.py
+│   ├── routes/   (auth, vault, admin, attack)
+│   ├── utils/    (auth, dna_crypto, integrity, security)
+│   └── database/ (db.py — Mongo / in-memory)
+├── frontend/     (html/, css/, js/)
+├── tests/        (crypto, auth, vault, attack & admin)
+└── docs/         (ARCHITECTURE.md, DEPLOYMENT.md)
 ```
 
-### 5. Run frontend
-
-Use Live Server OR open index.html:
-
-```
-http://127.0.0.1:5500
-```
-
----
-
-## 🧪 Sample Input
-
-```
-Chemical name: Sodium Chloride
-Formula: NaCl
-Notes: Highly sensitive lab sample – restricted access
-Encryption key: ATCGTACGGA
-```
-
----
-
-## 📈 Future Improvements
-
-* JWT Authentication with RBAC
-* Password hashing & validation
-* Advanced encryption logic
-* Cloud deployment (AWS / Render)
-* Anomaly detection system
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to fork and improve.
-
----
-
-## 📬 Feedback
-
-If you have suggestions or improvements, feel free to open an issue or connect.
-
----
-
-## ⭐ Show Your Support
-
-If you found this project interesting, consider giving it a ⭐ on GitHub!
+## Default credentials
+None — register your first account from `/register.html`. Pick **Admin** role
+to access the audit dashboard.

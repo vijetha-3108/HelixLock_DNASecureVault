@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Attack Simulator · DNA Secure Vault</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container">
+    <div class="card">
+      <h1>🛡️ Attack Simulation Panel</h1>
+      <p class="muted">Test how the vault responds to common attack vectors. All attempts are logged.</p>
+
+      <label>Target item</label>
+      <select id="item"></select>
+
+      <div class="tabs">
+        <button class="active" onclick="showTab(0,this)">Wrong-key decrypt</button>
+        <button onclick="showTab(1,this)">Tamper data</button>
+        <button onclick="showTab(2,this)">Unauthorized access</button>
+      </div>
+
+      <div id="tab0">
+        <label>Attacker's guessed key</label>
+        <input id="wrongKey" value="hunter2" />
+        <button class="danger" onclick="runWrongKey()">Run attack</button>
+      </div>
+      <div id="tab1" style="display:none">
+        <label>Owner's real key (to attempt verification)</label>
+        <input id="realKey" type="password" />
+        <button class="danger" onclick="runTamper()">Flip a base &amp; verify</button>
+      </div>
+      <div id="tab2" style="display:none">
+        <p class="muted">Sends a request to a protected endpoint with no token.</p>
+        <button class="danger" onclick="runUnauth()">Attempt unauthorized request</button>
+      </div>
+
+      <div id="result" style="margin-top:20px"></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    requireAuth();
+    document.getElementById("nav").innerHTML = renderNav("attack");
+
+    function showTab(i, btn) {
+      [0,1,2].forEach(n => document.getElementById("tab"+n).style.display = i===n ? "block" : "none");
+      document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    }
+
+    async function loadItems() {
+      const r = await api("/vault/items");
+      document.getElementById("item").innerHTML = (r.items || []).map(it =>
+        `<option value="${it.id}">${escapeHTML(it.name)} (${escapeHTML(it.formula)})</option>`
+      ).join("") || '<option value="">No items — add one first</option>';
+    }
+
+    function show(html) { document.getElementById("result").innerHTML = html; }
+
+    async function runWrongKey() {
+      const item_id = document.getElementById("item").value;
+      const wrong_key = document.getElementById("wrongKey").value;
+      try {
+        const r = await api("/attack/wrong-key", { method: "POST", body: JSON.stringify({ item_id, wrong_key }) });
+        show(`<div class="alert ${r.status==='rejected'?'success':'warn'}">
+          Status: <b>${escapeHTML(r.status)}</b><br>
+          ${r.output ? 'Garbage output: <code>'+escapeHTML(r.output)+'</code>' : ''}
+          ${r.reason ? escapeHTML(r.reason) : ''}
+        </div>`);
+      } catch (e) { show(`<div class="alert error">${escapeHTML(e.message)}</div>`); }
+    }
+
+    async function runTamper() {
+      const item_id = document.getElementById("item").value;
+      const key = document.getElementById("realKey").value;
+      try {
+        const r = await api("/attack/tamper", { method: "POST", body: JSON.stringify({ item_id, key }) });
+        show(`<div class="alert ${r.integrity_ok?'error':'success'}">
+          <b>${escapeHTML(r.verdict)}</b><br>
+          Tampered cipher preview: <span class="dna">${colorDNA(r.tampered_cipher_preview)}</span><br>
+          Decrypted: <code>${escapeHTML(r.decrypted || '(invalid)')}</code><br>
+          Integrity check: ${r.integrity_ok ? 'passed' : 'FAILED ✅ (tamper caught)'}
+        </div>`);
+      } catch (e) { show(`<div class="alert error">${escapeHTML(e.message)}</div>`); }
+    }
+
+    async function runUnauth() {
+      const res = await fetch("/api/attack/unauthorized", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      show(`<div class="alert success">HTTP ${res.status} · ${escapeHTML(data.message || 'blocked')}</div>`);
+    }
+
+    loadItems();
+  </script>
+</body>
+</html>

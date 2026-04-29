@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Activity · DNA Secure Vault</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container">
+    <div class="card">
+      <h1>My activity</h1>
+      <p class="muted">Personal log of vault and authentication events.</p>
+      <table>
+        <thead><tr><th>Timestamp</th><th>Severity</th><th>Event</th><th>Details</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+  <script src="/js/api.js"></script>
+  <script>
+    requireAuth();
+    document.getElementById("nav").innerHTML = renderNav("logs");
+    (async () => {
+      const r = await api("/admin/me/logs");
+      document.getElementById("rows").innerHTML = (r.logs || []).map(l => {
+        const sev = l.severity || "info";
+        const detail = Object.fromEntries(
+          Object.entries(l).filter(([k]) => !['_id','timestamp','event','severity'].includes(k))
+        );
+        return `<tr>
+          <td class="muted">${escapeHTML(l.timestamp)}</td>
+          <td class="severity-${sev}">${sev}</td>
+          <td><span class="tag">${escapeHTML(l.event)}</span></td>
+          <td><code>${escapeHTML(JSON.stringify(detail))}</code></td>
+        </tr>`;
+      }).join("") || '<tr><td colspan="4" class="muted">No activity yet.</td></tr>';
+    })();
+  </script>
+</body>
+</html>

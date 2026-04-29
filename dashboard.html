@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vault · DNA Secure Vault</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+
+<body>
+  <div id="nav"></div>
+  <div class="container">
+    <div class="card">
+      <h1>Add chemical entry</h1>
+      <p class="muted">Notes are encrypted with your DNA key. Without the key, the data cannot be recovered.</p>
+      <div id="alert"></div>
+      <div class="row">
+        <div><label>Chemical name</label><input id="name" placeholder="e.g. Caffeine" /></div>
+        <div><label>Formula</label><input id="formula" placeholder="C8H10N4O2" /></div>
+      </div>
+      <label>Notes (will be encrypted)</label>
+      <textarea id="notes" placeholder="Sensitive observations..."></textarea>
+      <label>Encryption key</label>
+      <input id="key" type="password" placeholder="Enter DNA Encryption Key (A/T/C/G sequence)" />
+      <div class="actions">
+        <button onclick="addItem()">🔐 Encrypt &amp; store</button>
+        <button class="ghost" onclick="visualize()">🧬 Visualize DNA</button>
+      </div>
+      <div id="viz" style="margin-top:20px;"></div>
+    </div>
+
+    <div class="card">
+      <h2 id="entries-title">Stored entries</h2>
+      <div id="items"></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    requireAuth();
+    document.getElementById("nav").innerHTML = renderNav("dash");
+    if (isAdmin()) {
+      document.getElementById("entries-title").innerHTML =
+        'All vault entries <span class="tag warn">admin view</span>';
+    }
+
+    async function load() {
+      try {
+        const r = await api("/vault/items");
+        const items = r.items || [];
+        const html = items.length === 0
+          ? '<p class="muted">No entries yet.</p>'
+          : items.map(it => `
+            <div class="item">
+              <div class="title">${escapeHTML(it.name)} <span class="tag">${escapeHTML(it.formula)}</span>
+                ${isAdmin() && it.owner_username ? `<span class="tag warn">owner: ${escapeHTML(it.owner_username)}</span>` : ''}
+              </div>
+              <div class="muted" style="margin:8px 0">Encrypted notes (DNA strand):</div>
+              <div class="dna">${colorDNA(it.encrypted_notes.slice(0, 160))}${it.encrypted_notes.length > 160 ? '…' : ''}</div>
+              ${renderHelix(it.encrypted_notes, { max: 50 })}
+              <div class="actions">
+                <input type="password" placeholder="Decryption key" id="k_${it.id}" />
+                <button onclick="decryptItem('${it.id}')">Decrypt</button>
+                <button class="danger" onclick="delItem('${it.id}')">Delete</button>
+              </div>
+              <div id="out_${it.id}"></div>
+            </div>
+          `).join("");
+        document.getElementById("items").innerHTML = html;
+      } catch (e) {
+        document.getElementById("items").innerHTML = `<div class="alert error">${escapeHTML(e.message)}</div>`;
+      }
+    }
+
+    async function addItem() {
+      const body = {
+        name: document.getElementById("name").value.trim(),
+        formula: document.getElementById("formula").value.trim(),
+        notes: document.getElementById("notes").value,
+        key: document.getElementById("key").value,
+      };
+      try {
+        await api("/vault/items", { method: "POST", body: JSON.stringify(body) });
+        document.getElementById("alert").innerHTML = `<div class="alert success">Stored securely.</div>`;
+        ["name", "formula", "notes", "key"].forEach(id => document.getElementById(id).value = "");
+        load();
+      } catch (e) {
+        document.getElementById("alert").innerHTML = `<div class="alert error">${escapeHTML(e.message)}</div>`;
+      }
+    }
+
+    async function decryptItem(id) {
+      const key = document.getElementById("k_" + id).value;
+      const out = document.getElementById("out_" + id);
+      try {
+        const r = await api(`/vault/items/${id}/decrypt`, { method: "POST", body: JSON.stringify({ key }) });
+        const tag = r.integrity_ok
+          ? '<span class="tag good">integrity OK</span>'
+          : '<span class="tag bad">integrity FAILED</span>';
+        out.innerHTML = `<div class="alert success">Notes ${tag}<br>${escapeHTML(r.notes)}</div>`;
+      } catch (e) {
+        out.innerHTML = `<div class="alert error">${escapeHTML(e.message)}</div>`;
+      }
+    }
+
+    async function delItem(id) {
+      if (!confirm("Delete this entry?")) return;
+      await api("/vault/items/" + id, { method: "DELETE" });
+      load();
+    }
+
+    async function visualize() {
+      const text = document.getElementById("notes").value;
+      const key = document.getElementById("key").value;
+      if (!text || !key) return alert("Enter notes and key first.");
+      const r = await api("/vault/visualize", { method: "POST", body: JSON.stringify({ text, key }) });
+      document.getElementById("viz").innerHTML = `
+        <div class="card" style="background:rgba(0,0,0,.2)">
+          <h2>Encryption pipeline</h2>
+          <label>1 · Binary representation</label>
+          <div class="dna" style="color:var(--muted)">${escapeHTML(r.binary.slice(0, 200))}${r.binary.length > 200 ? '…' : ''}</div>
+          <label>2 · DNA-encoded (key-derived mapping)</label>
+          <div class="dna">${colorDNA(r.dna.slice(0, 200))}${r.dna.length > 200 ? '…' : ''}</div>
+          <label>3 · After mutation layer (final ciphertext)</label>
+          <div class="dna">${colorDNA(r.mutated.slice(0, 200))}${r.mutated.length > 200 ? '…' : ''}</div>
+          <label>4 · Watson–Crick complement strand</label>
+          <div class="dna">${colorDNA(r.complement.slice(0, 200))}${r.complement.length > 200 ? '…' : ''}</div>
+          <label>5 · Animated double helix</label>
+          ${renderHelix(r.mutated, { max: 60 })}
+          <div class="legend">
+            <span><span class="sw" style="background:var(--A)"></span>A</span>
+            <span><span class="sw" style="background:var(--T)"></span>T</span>
+            <span><span class="sw" style="background:var(--G)"></span>G</span>
+            <span><span class="sw" style="background:var(--C)"></span>C</span>
+          </div>
+          <label>Key-derived mapping</label>
+          <div class="muted">${Object.entries(r.mapping).map(([k, v]) => `${k} → ${v}`).join("  ·  ")}</div>
+        </div>`;
+    }
+
+    load();
+  </script>
+</body>
+
+</html>
